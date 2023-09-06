@@ -1,0 +1,10 @@
+# config.yaml
+path_df: 'data/{file_name}.tsv'
+path_umap: 'data/{file_name_umap}.tsv'
+col_features: 'n_genes_by_counts'
+col_counts: 'total_counts'
+col_mt: 'pct_counts_mt'
+conditions:
+  - cond1
+  - cond2
+  - cond3
