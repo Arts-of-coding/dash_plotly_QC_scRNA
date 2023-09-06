@@ -205,4 +205,4 @@ def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range
     return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(host='0.0.0.0',debug=True, port=5000, use_reloader=False) #use_reloader=False
