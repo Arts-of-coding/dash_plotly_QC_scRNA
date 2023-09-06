@@ -7,10 +7,33 @@ from dash import dcc, html, Output, Input
 import plotly.express as px
 import pandas as pd
 import dash_callback_chain
+import yaml
+
+config_path = "data/config.yaml"
+
+# Add the read-in data from the yaml file
+def read_config(filename):
+    with open(filename, 'r') as yaml_file:
+        config = yaml.safe_load(yaml_file)
+    return config
+
+if __name__ == "__main__":
+    config = read_config(config_path)
+
+    path_df = config.get("path_df")
+    path_plotdf = config.get("path_umap")
+    conditions = config.get("conditions")
+    col_features = config.get("col_features")
+    col_counts = config.get("col_counts")
+    col_mt = config.get("col_mt")
+
+    #print("path_df:", path_df)
+    #print("path_plotdf:", path_plotdf)
+    #print("conditions:", conditions)
 
 # Import the data from .tsv files; one with QC params and one with UMAP data
-df = pd.read_csv('data/sc*.tsv', sep="\t")
-plotdf = pd.read_csv('data/sc*.tsv', sep="\t")
+df = pd.read_csv(path_df, sep="\t")
+plotdf = pd.read_csv(path_plotdf, sep="\t")
 
 # Add UMAP data of plotdf to the QC df
 df["umap1"] = plotdf["X_umap-0"]
@@ -20,21 +43,21 @@ df["umap2"] = plotdf["X_umap-1"]
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-min_value = df['n_genes_by_counts'].min()
-max_value = df['n_genes_by_counts'].max()
+min_value = df[col_features].min()
+max_value = df[col_features].max()
 
-min_value_2 = df['total_counts'].min()
+min_value_2 = df[col_counts].min()
 min_value_2 = min_value_2.astype(int)
-max_value_2 = df['total_counts'].max()
+max_value_2 = df[col_counts].max()
 max_value_2 = max_value_2.astype(int)
 
-min_value_3 = df['pct_counts_mt'].min()
+min_value_3 = df[col_mt].min()
 min_value_3 = round(min_value_3, 1)
-max_value_3 = df['pct_counts_mt'].max()
+max_value_3 = df[col_mt].max()
 max_value_3 = round(max_value_3, 1)
 
 app.layout = html.Div([
-    dcc.Dropdown(id='dpdn2', value=['ctrl', 'pbs', 'dul'], multi=True,
+    dcc.Dropdown(id='dpdn2', value=conditions, multi=True,
                  options=[{'label': x, 'value': x} for x in df.batch.unique()]),
 
   # Add Sliders for three QC params: N genes by counts, total amount of reads and pct MT reads
@@ -142,14 +165,14 @@ def update_slider_values(min_1, max_1, min_2, max_2, min_3, max_3):
 )
 def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range_value_3):
     dff = df[df.batch.isin(batch_chosen) &
-              (df['n_genes_by_counts'] >= range_value_1[0]) &
-              (df['n_genes_by_counts'] <= range_value_1[1]) &
-              (df['total_counts'] >= range_value_2[0]) &
-              (df['total_counts'] <= range_value_2[1]) &
-              (df['pct_counts_mt'] >= range_value_3[0]) &
-              (df['pct_counts_mt'] <= range_value_3[1])]
+              (df[col_features] >= range_value_1[0]) &
+              (df[col_features] <= range_value_1[1]) &
+              (df[col_counts] >= range_value_2[0]) &
+              (df[col_counts] <= range_value_2[1]) &
+              (df[col_mt] >= range_value_3[0]) &
+              (df[col_mt] <= range_value_3[1])]
 
-    fig_violin = px.violin(data_frame=dff, x='batch', y='n_genes_by_counts', box=True, points="all",
+    fig_violin = px.violin(data_frame=dff, x='batch', y=col_features, box=True, points="all",
                             color='batch', hover_name='batch')
 
     # Calculate the percentage of each category for pie chart
@@ -167,15 +190,15 @@ def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range
                              labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
                              hover_name='batch')
 
-    fig_scatter_2 = px.scatter(data_frame=dff, x='umap1', y='umap2', color='pct_counts_mt',
+    fig_scatter_2 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_mt,
                              labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
                              hover_name='batch')
 
-    fig_scatter_3 = px.scatter(data_frame=dff, x='umap1', y='umap2', color='n_genes_by_counts',
+    fig_scatter_3 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_features,
                              labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
                              hover_name='batch')
 
-    fig_scatter_4 = px.scatter(data_frame=dff, x='umap1', y='umap2', color='total_counts',
+    fig_scatter_4 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_counts,
                              labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
                              hover_name='batch')
 
