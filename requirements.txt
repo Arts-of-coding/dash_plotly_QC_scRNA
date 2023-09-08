@@ -3,6 +3,8 @@ dash_callback_chain==0.0.2
 numpy==1.24.4
 pandas==2.1.0
 plotly==5.16.1
+pyarrow==13.0.0
+polars==0.19.2
 PyYAML==6.0.1
 scanpy==1.9.4
 umap_learn==0.5.3
