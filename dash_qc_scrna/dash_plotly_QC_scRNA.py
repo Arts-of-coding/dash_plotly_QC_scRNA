@@ -100,15 +100,7 @@ tab1_content = html.Div([
     html.Div([
         dcc.Graph(id='pie-graph', figure={}, className='six columns',config=config_fig),
         dcc.Graph(id='my-graph', figure={}, clickData=None, hoverData=None,
-                  config={
-                      'staticPlot': False,
-                      'scrollZoom': True,
-                      'doubleClick': 'reset',
-                      'showTips': False,
-                      'displayModeBar': True,
-                      'watermark': True,
-                  },
-                  className='six columns'
+                  className='six columns',config=config_fig
                   ),
         dcc.Graph(id='scatter-plot', figure={}, className='six columns',config=config_fig)
     ]),
@@ -232,16 +224,16 @@ tab2_content = html.Div([
 ]),
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-5', figure={}, className='six columns')
+        dcc.Graph(id='scatter-plot-5', figure={}, className='six columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-6', figure={}, className='six columns')
+        dcc.Graph(id='scatter-plot-6', figure={}, className='six columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-7', figure={}, className='six columns')
+        dcc.Graph(id='scatter-plot-7', figure={}, className='six columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-8', figure={}, className='six columns')
+        dcc.Graph(id='scatter-plot-8', figure={}, className='six columns',config=config_fig)
     ]),
 ])
 
