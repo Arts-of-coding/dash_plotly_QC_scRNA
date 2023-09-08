@@ -20,9 +20,6 @@ def read_config(filename):
 
 if __name__ == "__main__":
     config = read_config(config_path)
-
-    path_df = config.get("path_df")
-    path_plotdf = config.get("path_umap")
     path_parquet = config.get("path_parquet")
     conditions = config.get("conditions")
     col_features = config.get("col_features")
@@ -50,13 +47,13 @@ min_value_3 = round(min_value_3, 1)
 max_value_3 = df[col_mt].max()
 max_value_3 = round(max_value_3, 1)
 
-print([{'label': x, 'value': x} for x in df.select("batch").unique()])
-print(df["batch"].to_list())
-print(df[col_features])
 
 app.layout = html.Div([
     dcc.Dropdown(id='dpdn2', value=conditions, multi=True,
-                 options=["pbs","ctrl","dul"]),
+                 options=conditions), # Loads in the conditions specified in the yaml file
+
+# Note: Future version perhaps all values from a column in the dataframe of the parquet file
+# Note 2: This could also be a tsv of the categories and own specified colors
 
   # Add Sliders for three QC params: N genes by counts, total amount of reads and pct MT reads
     html.Label("N Genes by Counts"),
@@ -164,7 +161,7 @@ def update_slider_values(min_1, max_1, min_2, max_2, min_3, max_3):
 
 def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range_value_3):
     dff = df.filter(
-        (pl.col('batch').cast(str).is_in(batch_chosen)) & #batch_chosen
+        (pl.col('batch').cast(str).is_in(batch_chosen)) &
         (pl.col(col_features) >= range_value_1[0]) &
         (pl.col(col_features) <= range_value_1[1]) &
         (pl.col(col_counts) >= range_value_2[0]) &
@@ -181,14 +178,14 @@ def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range
     fig_violin = px.violin(data_frame=dff, x='batch', y=col_features, box=True, points="all",
                             color='batch', hover_name='batch')
 
-    # Calculate the percentage of each category for pie chart
+    # Calculate the percentage of each category (normalized_count) for pie chart
     category_counts = dff.group_by("batch").agg(pl.col("batch").count().alias("count"))
-    total_count = len(dff)#category_counts.select(pl.sum(pl.col("count")).alias("total_Count"))
+    total_count = len(dff)
     category_counts = category_counts.with_columns((pl.col("count") / total_count * 100).alias("normalized_count"))
 
 # Display the result
-    labels = category_counts["batch"].to_list()#category_counts.index
-    values = category_counts["normalized_count"].to_list() #category_counts.values * 100  # Convert to percentage
+    labels = category_counts["batch"].to_list()
+    values = category_counts["normalized_count"].to_list()
 
     total_cells = total_count  # Calculate total number of cells
     pie_title = f'Percentage of Categories (Total Cells: {total_cells})'  # Include total cells in the title
@@ -218,4 +215,4 @@ def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range
 
 # Set http://localhost:5000/ in web browser
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0',debug=True, port=5000, use_reloader=False) #use_reloader=False
+    app.run_server(host='0.0.0.0',debug=True, port=5000, use_reloader=False)
