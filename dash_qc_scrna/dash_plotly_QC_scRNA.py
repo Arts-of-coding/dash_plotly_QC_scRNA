@@ -5,9 +5,10 @@
 import dash
 from dash import dcc, html, Output, Input
 import plotly.express as px
-import pandas as pd
 import dash_callback_chain
 import yaml
+import polars as pl
+pl.enable_string_cache(False)
 
 config_path = "data/config.yaml"
 
@@ -22,22 +23,15 @@ if __name__ == "__main__":
 
     path_df = config.get("path_df")
     path_plotdf = config.get("path_umap")
+    path_parquet = config.get("path_parquet")
     conditions = config.get("conditions")
     col_features = config.get("col_features")
     col_counts = config.get("col_counts")
     col_mt = config.get("col_mt")
 
-    #print("path_df:", path_df)
-    #print("path_plotdf:", path_plotdf)
-    #print("conditions:", conditions)
-
-# Import the data from .tsv files; one with QC params and one with UMAP data
-df = pd.read_csv(path_df, sep="\t")
-plotdf = pd.read_csv(path_plotdf, sep="\t")
-
-# Add UMAP data of plotdf to the QC df
-df["umap1"] = plotdf["X_umap-0"]
-df["umap2"] = plotdf["X_umap-1"]
+# Import the data from one .parquet file
+df = pl.read_parquet(path_parquet)
+df = df.rename({"__index_level_0__": "Unnamed: 0"})
 
 # Setup the app
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -47,18 +41,22 @@ min_value = df[col_features].min()
 max_value = df[col_features].max()
 
 min_value_2 = df[col_counts].min()
-min_value_2 = min_value_2.astype(int)
+min_value_2 = round(min_value_2)
 max_value_2 = df[col_counts].max()
-max_value_2 = max_value_2.astype(int)
+max_value_2 = round(max_value_2)
 
 min_value_3 = df[col_mt].min()
 min_value_3 = round(min_value_3, 1)
 max_value_3 = df[col_mt].max()
 max_value_3 = round(max_value_3, 1)
 
+print([{'label': x, 'value': x} for x in df.select("batch").unique()])
+print(df["batch"].to_list())
+print(df[col_features])
+
 app.layout = html.Div([
     dcc.Dropdown(id='dpdn2', value=conditions, multi=True,
-                 options=[{'label': x, 'value': x} for x in df.batch.unique()]),
+                 options=["pbs","ctrl","dul"]),
 
   # Add Sliders for three QC params: N genes by counts, total amount of reads and pct MT reads
     html.Label("N Genes by Counts"),
@@ -163,46 +161,61 @@ def update_slider_values(min_1, max_1, min_2, max_2, min_3, max_3):
     Input(component_id='range-slider-2', component_property='value'),
     Input(component_id='range-slider-3', component_property='value')
 )
-def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range_value_3):
-    dff = df[df.batch.isin(batch_chosen) &
-              (df[col_features] >= range_value_1[0]) &
-              (df[col_features] <= range_value_1[1]) &
-              (df[col_counts] >= range_value_2[0]) &
-              (df[col_counts] <= range_value_2[1]) &
-              (df[col_mt] >= range_value_3[0]) &
-              (df[col_mt] <= range_value_3[1])]
 
+def update_graph_and_pie_chart(batch_chosen, range_value_1, range_value_2, range_value_3):
+    dff = df.filter(
+        (pl.col('batch').cast(str).is_in(batch_chosen)) & #batch_chosen
+        (pl.col(col_features) >= range_value_1[0]) &
+        (pl.col(col_features) <= range_value_1[1]) &
+        (pl.col(col_counts) >= range_value_2[0]) &
+        (pl.col(col_counts) <= range_value_2[1]) &
+        (pl.col(col_mt) >= range_value_3[0]) &
+        (pl.col(col_mt) <= range_value_3[1])
+)
+    
+    #Drop categories that are not in the filtered data
+    dff = dff.with_columns(dff['batch'].cast(str))
+    dff = dff.with_columns(dff['batch'].cast(pl.Categorical))
+
+    # Plot figures
     fig_violin = px.violin(data_frame=dff, x='batch', y=col_features, box=True, points="all",
                             color='batch', hover_name='batch')
 
     # Calculate the percentage of each category for pie chart
-    category_counts = dff['batch'].value_counts(normalize=True)
-    labels = category_counts.index
-    values = category_counts.values * 100  # Convert to percentage
+    category_counts = dff.group_by("batch").agg(pl.col("batch").count().alias("count"))
+    total_count = len(dff)#category_counts.select(pl.sum(pl.col("count")).alias("total_Count"))
+    category_counts = category_counts.with_columns((pl.col("count") / total_count * 100).alias("normalized_count"))
 
-    total_cells = len(dff)  # Calculate total number of cells
+# Display the result
+    labels = category_counts["batch"].to_list()#category_counts.index
+    values = category_counts["normalized_count"].to_list() #category_counts.values * 100  # Convert to percentage
+
+    total_cells = total_count  # Calculate total number of cells
     pie_title = f'Percentage of Categories (Total Cells: {total_cells})'  # Include total cells in the title
 
     fig_pie = px.pie(names=labels, values=values, title=pie_title)
 
     # Create the scatter plots
-    fig_scatter = px.scatter(data_frame=dff, x='umap1', y='umap2', color='batch',
-                             labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
+    fig_scatter = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color='batch',
+                             labels={'umap1': 'X_umap-0', 'umap2': 'X_umap-1'},
                              hover_name='batch')
 
-    fig_scatter_2 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_mt,
-                             labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
+    fig_scatter_2 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_mt,
+                             labels={'umap1': 'X_umap-0', 'umap2': 'X_umap-1'},
                              hover_name='batch')
 
-    fig_scatter_3 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_features,
-                             labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
+    fig_scatter_3 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_features,
+                             labels={'umap1': 'X_umap-0', 'umap2': 'X_umap-1'},
                              hover_name='batch')
 
-    fig_scatter_4 = px.scatter(data_frame=dff, x='umap1', y='umap2', color=col_counts,
-                             labels={'umap1': 'UMAP 1', 'umap2': 'UMAP 2'},
+
+    fig_scatter_4 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_counts,
+                             labels={'umap1': 'X_umap-0', 'umap2': 'X_umap-1'},
                              hover_name='batch')
+
 
     return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4
 
+# Set http://localhost:5000/ in web browser
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0',debug=True, port=5000, use_reloader=False) #use_reloader=False
