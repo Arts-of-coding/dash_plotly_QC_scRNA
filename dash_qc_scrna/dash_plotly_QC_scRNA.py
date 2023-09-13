@@ -98,20 +98,20 @@ tab1_content = html.Div([
     dcc.Input(id='min-slider-3', type='number', value=min_value_3, debounce=True),
     dcc.Input(id='max-slider-3', type='number', value=max_value_3, debounce=True),
     html.Div([
-        dcc.Graph(id='pie-graph', figure={}, className='six columns',config=config_fig),
+        dcc.Graph(id='pie-graph', figure={}, className='four columns',config=config_fig),
         dcc.Graph(id='my-graph', figure={}, clickData=None, hoverData=None,
-                  className='six columns',config=config_fig
+                  className='four columns',config=config_fig
                   ),
-        dcc.Graph(id='scatter-plot', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot', figure={}, className='four columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-2', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-2', figure={}, className='four columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-3', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-3', figure={}, className='four columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-4', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-4', figure={}, className='four columns',config=config_fig)
     ]),
 ])
 
@@ -224,16 +224,37 @@ tab2_content = html.Div([
 ]),
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-5', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-5', figure={}, className='three columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-6', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-6', figure={}, className='three columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-7', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-7', figure={}, className='three columns',config=config_fig)
     ]),
     html.Div([
-        dcc.Graph(id='scatter-plot-8', figure={}, className='six columns',config=config_fig)
+        dcc.Graph(id='scatter-plot-8', figure={}, className='three columns',config=config_fig)
+    ]),
+])
+
+# Create the second tab content with scatter-plot-5 and scatter-plot-6
+tab3_content = html.Div([
+    html.Div([
+            html.Label("UMAP condition 1"),
+            dcc.Dropdown(id='dpdn5', value="total_counts", multi=False,
+                 options=df.columns),
+            html.Label("UMAP condition 2"),
+            dcc.Dropdown(id='dpdn6', value="n_genes_by_counts", multi=False,
+                 options=df.columns),
+    ]),
+    html.Div([
+        dcc.Graph(id='scatter-plot-9', figure={}, className='four columns',config=config_fig)
+    ]),
+    html.Div([
+        dcc.Graph(id='scatter-plot-10', figure={}, className='four columns',config=config_fig)
+    ]),
+    html.Div([
+        dcc.Graph(id='scatter-plot-11', figure={}, className='four columns',config=config_fig)
     ]),
 ])
 
@@ -244,6 +265,7 @@ app.layout = html.Div([
         'height': 50}, value='tab1',children=[
         dcc.Tab(label='QC', value='tab1', children=tab1_content),
         dcc.Tab(label='Cell cycle', value='tab2', children=tab2_content),
+        dcc.Tab(label='Custom', value='tab3', children=tab3_content),
     ]),
 ])
 
@@ -290,15 +312,20 @@ def update_slider_values(min_1, max_1, min_2, max_2, min_3, max_3):
     Output(component_id='scatter-plot-6', component_property='figure'),
     Output(component_id='scatter-plot-7', component_property='figure'),
     Output(component_id='scatter-plot-8', component_property='figure'),
+    Output(component_id='scatter-plot-9', component_property='figure'),
+    Output(component_id='scatter-plot-10', component_property='figure'),
+    Output(component_id='scatter-plot-11', component_property='figure'),
     Input(component_id='dpdn2', component_property='value'),
     Input(component_id='dpdn3', component_property='value'),
     Input(component_id='dpdn4', component_property='value'),
+    Input(component_id='dpdn5', component_property='value'),
+    Input(component_id='dpdn6', component_property='value'),
     Input(component_id='range-slider-1', component_property='value'),
     Input(component_id='range-slider-2', component_property='value'),
     Input(component_id='range-slider-3', component_property='value')
 )
 
-def update_graph_and_pie_chart(batch_chosen, s_chosen, g2m_chosen, range_value_1, range_value_2, range_value_3):
+def update_graph_and_pie_chart(batch_chosen, s_chosen, g2m_chosen, condition1_chosen, condition2_chosen, range_value_1, range_value_2, range_value_3):
     dff = df.filter(
         (pl.col('batch').cast(str).is_in(batch_chosen)) &
         (pl.col(col_features) >= range_value_1[0]) &
@@ -315,7 +342,7 @@ def update_graph_and_pie_chart(batch_chosen, s_chosen, g2m_chosen, range_value_1
 
     # Plot figures
     fig_violin = px.violin(data_frame=dff, x='batch', y=col_features, box=True, points="all",
-                            color='batch', hover_name='batch')
+                            color='batch', hover_name='batch',template="seaborn")
 
     # Calculate the percentage of each category (normalized_count) for pie chart
     category_counts = dff.group_by("batch").agg(pl.col("batch").count().alias("count"))
@@ -327,46 +354,58 @@ def update_graph_and_pie_chart(batch_chosen, s_chosen, g2m_chosen, range_value_1
     values = category_counts["normalized_count"].to_list()
 
     total_cells = total_count  # Calculate total number of cells
-    pie_title = f'Percentage of Categories (Total Cells: {total_cells})'  # Include total cells in the title
+    pie_title = f'Percentage of Total Cells: {total_cells}'  # Include total cells in the title
 
-    fig_pie = px.pie(names=labels, values=values, title=pie_title)
+    fig_pie = px.pie(names=labels, values=values, title=pie_title,template="seaborn")
 
     # Create the scatter plots
     fig_scatter = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color='batch',
                              labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                             hover_name='batch')
+                             hover_name='batch',template="seaborn")
 
     fig_scatter_2 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_mt,
                              labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                             hover_name='batch')
+                             hover_name='batch',template="seaborn")
 
     fig_scatter_3 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_features,
                              labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                             hover_name='batch')
+                             hover_name='batch',template="seaborn")
 
 
     fig_scatter_4 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=col_counts,
                              labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                             hover_name='batch')
+                             hover_name='batch',template="seaborn")
     
     fig_scatter_5 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=s_chosen,
                             labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                            hover_name='batch', title="S-cycle gene:")
+                            hover_name='batch', title="S-cycle gene:",template="seaborn")
 
     fig_scatter_6 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=g2m_chosen,
                             labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                            hover_name='batch', title="G2M-cycle gene:")
+                            hover_name='batch', title="G2M-cycle gene:",template="seaborn")
     
     fig_scatter_7 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color="S_score",
                             labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                            hover_name='batch')
+                            hover_name='batch', title="S score:",template="seaborn")
     
     fig_scatter_8 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color="G2M_score",
                             labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
-                            hover_name='batch')
+                            hover_name='batch', title="G2M score:",template="seaborn")
+    
+    fig_scatter_9 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=condition1_chosen,
+                            labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
+                            hover_name='batch',template="seaborn")
+    
+    fig_scatter_10 = px.scatter(data_frame=dff, x='X_umap-0', y='X_umap-1', color=condition2_chosen,
+                            labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
+                            hover_name='batch',template="seaborn")
+    
+    fig_scatter_11 = px.scatter(data_frame=dff, x=condition1_chosen, y=condition2_chosen, color='batch',
+                            #labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
+                            hover_name='batch',template="seaborn")
 
 
-    return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4, fig_scatter_5, fig_scatter_6, fig_scatter_7, fig_scatter_8
+    return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4, fig_scatter_5, fig_scatter_6, fig_scatter_7, fig_scatter_8, fig_scatter_9, fig_scatter_10, fig_scatter_11
 
 # Set http://localhost:5000/ in web browser
 if __name__ == '__main__':
