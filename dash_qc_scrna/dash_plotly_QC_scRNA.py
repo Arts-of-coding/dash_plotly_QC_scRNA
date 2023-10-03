@@ -15,8 +15,8 @@ config_fig = {
   'toImageButtonOptions': {
     'format': 'svg',
     'filename': 'custom_image',
-    'height': 700,
-    'width': 800,
+    'height': 600,
+    'width': 700,
     'scale': 1,
   }
 }
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
 # Import the data from one .parquet file
 df = pl.read_parquet(path_parquet)
-df = df.rename({"__index_level_0__": "Unnamed: 0"})
+#df = df.rename({"__index_level_0__": "Unnamed: 0"})
 
 # Setup the app
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -256,6 +256,11 @@ tab3_content = html.Div([
     html.Div([
         dcc.Graph(id='scatter-plot-11', figure={}, className='four columns',config=config_fig)
     ]),
+    html.Div([
+            dcc.Graph(id='my-graph2', figure={}, clickData=None, hoverData=None,
+                  className='four columns',config=config_fig
+                  )
+    ]),
 ])
 
 # Define the tabs layout
@@ -315,6 +320,7 @@ def update_slider_values(min_1, max_1, min_2, max_2, min_3, max_3):
     Output(component_id='scatter-plot-9', component_property='figure'),
     Output(component_id='scatter-plot-10', component_property='figure'),
     Output(component_id='scatter-plot-11', component_property='figure'),
+    Output(component_id='my-graph2', component_property='figure'),
     Input(component_id='dpdn2', component_property='value'),
     Input(component_id='dpdn3', component_property='value'),
     Input(component_id='dpdn4', component_property='value'),
@@ -403,9 +409,12 @@ def update_graph_and_pie_chart(batch_chosen, s_chosen, g2m_chosen, condition1_ch
     fig_scatter_11 = px.scatter(data_frame=dff, x=condition1_chosen, y=condition2_chosen, color='batch',
                             #labels={'X_umap-0': 'umap1' , 'X_umap-1': 'umap2'},
                             hover_name='batch',template="seaborn")
+    
+    fig_violin2 = px.violin(data_frame=dff, x=condition1_chosen, y=condition2_chosen, box=True, points="all",
+                            color=condition1_chosen, hover_name=condition1_chosen,template="seaborn")
 
 
-    return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4, fig_scatter_5, fig_scatter_6, fig_scatter_7, fig_scatter_8, fig_scatter_9, fig_scatter_10, fig_scatter_11
+    return fig_violin, fig_pie, fig_scatter, fig_scatter_2, fig_scatter_3, fig_scatter_4, fig_scatter_5, fig_scatter_6, fig_scatter_7, fig_scatter_8, fig_scatter_9, fig_scatter_10, fig_scatter_11, fig_violin2
 
 # Set http://localhost:5000/ in web browser
 if __name__ == '__main__':
